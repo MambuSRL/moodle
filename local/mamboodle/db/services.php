@@ -3,7 +3,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $functions = array(
-    'core_user_get_users_custom' => array(
+    'local_mamboodle_get_users_custom' => array(
         'classname' => 'local_mamboodle_external',
         'methodname' => 'get_users_custom',
         'classpath' => 'local/mamboodle/externallib.php',
@@ -20,5 +20,12 @@ $functions = array(
         'type' => 'write',
         'ajax' => false,
     ),
-
+    'local_mamboodle_loadModelli' => array(
+        'classname' => 'local_mamboodle_external',
+        'methodname' => 'loadModelli',
+        'classpath' => 'local/mamboodle/externallib.php',
+        'description' => 'Carica i modelli di corsi',
+        'type' => 'read',
+        'ajax' => true,
+    ),
 );

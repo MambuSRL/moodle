@@ -3,6 +3,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once("$CFG->libdir/externallib.php");
+require_once("$CFG->dirroot/course/lib.php");
 
 class local_mamboodle_external extends external_api {
 
@@ -15,6 +16,46 @@ class local_mamboodle_external extends external_api {
             )
         );
     }
+
+	public static function loadModelli_parameters() {
+		return new external_function_parameters(
+			array()
+		);
+	}
+
+	public static function loadModelli(){
+		global $DB;
+		// Query the database to get each cours that has idnumber not null
+		$sql = "SELECT * FROM {course} WHERE idnumber IS NOT NULL AND idnumber != ''";
+		$modelli = $DB->get_records_sql($sql);
+		$result = [];
+		foreach ($modelli as $modello) {
+			$result[] = [
+				'id' => $modello->id,
+				'fullname' => $modello->fullname,
+				'shortname' => $modello->shortname,
+				'idnumber' => $modello->idnumber,
+				'startdate' => $modello->startdate,
+				'enddate' => $modello->enddate,
+			];
+		}
+		return $result;
+	}
+
+	public static function loadModelli_returns() {
+		return new external_multiple_structure(
+			new external_single_structure(
+				array(
+					'id' => new external_value(PARAM_INT, 'Course ID'),
+					'fullname' => new external_value(PARAM_TEXT, 'Full name of the course'),
+					'shortname' => new external_value(PARAM_TEXT, 'Short name of the course'),
+					'idnumber' => new external_value(PARAM_TEXT, 'ID number of the course'),
+					'startdate' => new external_value(PARAM_INT, 'Start date of the course in Unix timestamp format'),
+					'enddate' => new external_value(PARAM_INT, 'End date of the course in Unix timestamp format'),
+				)
+			)
+		);
+	}
 
     public static function get_users_custom($userids) {
         global $DB;
@@ -76,8 +117,8 @@ class local_mamboodle_external extends external_api {
 		));
 	
 		// Retrieve details of the existing course
-		$existing_course = $DB->get_record('course', ['id' => $params['existing_course_id']]);
-		
+		$existing_course = $DB->get_record('course', ['idnumber' => $params['existing_course_id']]);
+		$idCorso = $existing_course->id;
 		// Query the database to get the greatest sortorder among all courses in the category
 		$sql = "SELECT MAX(sortorder) AS max_sortorder FROM {course} WHERE category = :category";
 		$sqlParams = array('category' => $existing_course->category);
@@ -99,13 +140,14 @@ class local_mamboodle_external extends external_api {
 		$new_course_id = $DB->insert_record('course', (object)$new_course_params);
 		
 		// Retrieve sections from the existing course
-		$existing_course_sections = $DB->get_records('course_sections', ['course' => $params['existing_course_id']]);
+		$existing_course_sections = $DB->get_records('course_sections', ['course' => $idCorso]);
 
 		// Prepare an array to hold the section details for creation
 		$new_sections = array();
-
+		$a_positions = array();
 		foreach ($existing_course_sections as $section) {
 			// Prepare parameters for creating the section in the new course
+			$a_positions[] = $section->section;
 			$section_params = array(
 				'courseid' => $new_course_id,
 				'section' => $section->section,
@@ -118,10 +160,10 @@ class local_mamboodle_external extends external_api {
 			$new_sections[] = $section_params;
 		}
 		// Create sections in the new course
-		course_create_sections_if_missing($new_course_id, $new_sections);
+		course_create_sections_if_missing($new_course_id, $a_positions);
 
 		// Retrieve activities from the existing course
-		$existing_course_activities = $DB->get_records('course_modules', ['course' => $existing_course_id]);
+		$existing_course_activities = $DB->get_records('course_modules', ['course' => $idCorso]);
 	
 		// Create activities in the new course based on the activities from the model course
 		foreach ($existing_course_activities as $activity) {
