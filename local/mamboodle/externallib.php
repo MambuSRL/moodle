@@ -378,7 +378,7 @@ class local_mamboodle_external extends external_api {
 							'iduse' => new external_value(PARAM_INT, 'ID of the user'),
 							'usern' => new external_value(PARAM_TEXT, 'Username of the user'),
 							'email' => new external_value(PARAM_TEXT, 'Email of the user'),
-							'nato_il' => new external_value(PARAM_INT, 'Date of birth of the user in Unix timestamp format'),
+							'nato_il' => new external_value(PARAM_INT, 'Date of birth of the user in Unix timestamp format', VALUE_OPTIONAL),
 							'cf' => new external_value(PARAM_TEXT, 'Fiscal code of the user'),
 							'cnome' => new external_value(PARAM_TEXT, 'Name and surname of the user'),
 							'vnome' => new external_value(PARAM_TEXT, 'Name of the user'),
@@ -391,6 +391,128 @@ class local_mamboodle_external extends external_api {
 	}
 
 	public static function enroll_users_to_course_returns() {
+		return new external_single_structure(
+			array(
+				'success' => new external_value(PARAM_BOOL, 'True if the operation was successful, false otherwise'),
+			)
+		);
+	}
+
+	public static function sync_users_to_course($course_id, $user_list) {
+		global $DB;
+		global $CFG;
+		$params = self::validate_parameters(self::enroll_users_to_course_parameters(), array(
+			'course_id' => $course_id,
+			'user_list' => $user_list
+		));
+
+		$course = $DB->get_record('course', ['id' => $params['course_id']]);
+		if (!$course) {
+			throw new invalid_parameter_exception('ID del corso non valido. Il corso con l\'ID fornito non esiste.');
+		}
+		// Retrieve the manual enrollment instance for the course
+		$enrol_instance = $DB->get_record('enrol', [
+			'courseid' => $course->id, 
+			'enrol' => 'manual'
+		]);
+		// Check if the enrollment instance exists
+		if (!$enrol_instance) {
+			throw new moodle_exception('No manual enrollment instance found for the course');
+		}
+		// Get the manual enrollment plugin
+		$manual_enrol = new enrol_manual_plugin();
+
+		//trovo la lista degli utenti già iscritti al corso
+		$enrolled_users = $DB->get_records_sql("SELECT u.id, u.idnumber FROM {user} u JOIN {user_enrolments} ue ON u.id = ue.userid JOIN {enrol} e ON ue.enrolid = e.id WHERE e.courseid = ?", [$course->id]);
+		$enrolled_users_idnumber = [];
+		foreach ($enrolled_users as $user) {
+			$enrolled_users_idnumber[] = $user->idnumber;
+		}
+
+		//trovo gli utenti da rimuovere e quelli da iscrivere
+		$users_to_add = [];
+		foreach($user_list as $user){
+			if(!in_array($user['iduse'], $enrolled_users_idnumber)){
+				$users_to_add[] = $user;
+			}
+		}
+		$users_to_remove = [];
+		foreach($enrolled_users_idnumber as $id){
+			$found = false;
+			foreach($user_list as $user){
+				if($user['iduse'] == $id){
+					$found = true;
+					break;
+				}
+			}
+			if(!$found){
+				$users_to_remove[] = $id;
+			}
+		}
+
+		//rimuovo i partecipanti non più presenti
+		foreach($users_to_remove as $id){
+			$existing_user = $DB->get_record('user', ['idnumber' => $id]);
+			$manual_enrol->unenrol_user($enrol_instance, $existing_user->id);
+		}
+		
+		//per ogni record di user_list, verifico se l'anagrafica è già presente (cf) e se non lo è, la creo
+		foreach ($users_to_add as $user) {
+			$existing_user = $DB->get_record('user', ['idnumber' => $user['iduse']]);
+			if (!$existing_user) {
+				// Creo l'utente
+				$new_user_password = generate_password();
+				$new_user = new stdClass();
+				$new_user->username = $user['usern'];
+				$new_user->password = "placeholder"; // Temporary password placeholder
+				$new_user->firstname = $user['vnome'];
+				$new_user->lastname = $user["vcogn"];
+				$new_user->email = $user['email'];
+				$new_user->auth = 'manual';
+				$new_user->confirmed = 1;
+				$new_user->mnethostid = $CFG->mnet_localhost_id;
+				$new_user->lang = 'it';
+				$new_user->idnumber = $user['iduse'];
+				$new_user->timecreated = time();
+				$new_user->timemodified = time();
+				$user_id = $DB->insert_record('user', $new_user);
+				$existing_user = $DB->get_record('user', ['id' => $user_id]);
+				// Aggiorno l'utente con la password generata
+				update_internal_user_password($existing_user, $new_user_password);
+			}
+			else {
+				$user_id = $existing_user->id;
+			}
+			// Se non è già iscritto, iscrivo l'utente al corso
+			$student_role_id = $DB->get_field('role', 'id', ['shortname' => 'student']);
+			$manual_enrol->enrol_user($enrol_instance, $user_id, $student_role_id, time());
+		}
+		return ['success' => true];
+	}
+
+	public static function sync_users_to_course_parameters() {
+		return new external_function_parameters(
+			array(
+				'course_id' => new external_value(PARAM_INT, 'ID of the course'),
+				'user_list' => new external_multiple_structure(
+					new external_single_structure(
+						array(
+							'iduse' => new external_value(PARAM_INT, 'ID of the user'),
+							'usern' => new external_value(PARAM_TEXT, 'Username of the user'),
+							'email' => new external_value(PARAM_TEXT, 'Email of the user'),
+							'nato_il' => new external_value(PARAM_INT, 'Date of birth of the user in Unix timestamp format', VALUE_OPTIONAL),
+							'cf' => new external_value(PARAM_TEXT, 'Fiscal code of the user'),
+							'cnome' => new external_value(PARAM_TEXT, 'Name and surname of the user'),
+							'vnome' => new external_value(PARAM_TEXT, 'Name of the user'),
+							'vcogn' => new external_value(PARAM_TEXT, 'Surname of the user'),
+						)
+					)
+				),
+			)
+		);
+	}
+
+	public static function sync_users_to_course_returns() {
 		return new external_single_structure(
 			array(
 				'success' => new external_value(PARAM_BOOL, 'True if the operation was successful, false otherwise'),

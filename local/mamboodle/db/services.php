@@ -44,4 +44,12 @@ $functions = array(
         'type' => 'read',
         'ajax' => true,
     ),
+    'local_mamboodle_sync_users_to_course' => array(
+        'classname' => 'local_mamboodle_external',
+        'methodname' => 'sync_users_to_course',
+        'classpath' => 'local/mamboodle/externallib.php',
+        'description' => 'Sincronizza discenti a un corso',
+        'type' => 'read',
+        'ajax' => true,
+    ),
 );
