@@ -57,3 +57,4 @@ moodle-plugin-ci.phar
 phpcs.xml
 jsconfig.json
 moodle.code-workspace
+/theme
