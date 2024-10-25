@@ -483,7 +483,7 @@ class local_mamboodle_external extends external_api {
 			else {
 				$user_id = $existing_user->id;
 			}
-			// Se non è già iscritto, iscrivo l'utente al corso
+			// Se non è già iscritto, iscrivo l'utente al corso, altrimenti lo ignoro
 			$student_role_id = $DB->get_field('role', 'id', ['shortname' => 'student']);
 			$manual_enrol->enrol_user($enrol_instance, $user_id, $student_role_id, time());
 		}
