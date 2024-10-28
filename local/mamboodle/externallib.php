@@ -505,8 +505,10 @@ class local_mamboodle_external extends external_api {
 							'cnome' => new external_value(PARAM_TEXT, 'Name and surname of the user'),
 							'vnome' => new external_value(PARAM_TEXT, 'Name of the user'),
 							'vcogn' => new external_value(PARAM_TEXT, 'Surname of the user'),
-						)
-					)
+						),
+						VALUE_OPTIONAL
+					),
+					'List of users to enroll in the course', VALUE_DEFAULT, []
 				),
 			)
 		);
