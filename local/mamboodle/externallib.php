@@ -163,11 +163,12 @@ class local_mamboodle_external extends external_api {
 				'existing_course_id' => new external_value(PARAM_INT, 'ID of the existing course'),
 				'startdate' => new external_value(PARAM_INT, 'Start date of the new course in Unix timestamp format'),
 				'enddate' => new external_value(PARAM_INT, 'End date of the new course in Unix timestamp format'),
+				/* 'idLezioneEdumbu' => new external_value(PARAM_INT, 'ID of the lesson in Edumbu') */
 			)
 		);
 	}
 
-	public static function create_course_from_model($new_course_name, $new_course_shortname, $existing_course_id, $startdate, $enddate) {
+	public static function create_course_from_model($new_course_name, $new_course_shortname, $existing_course_id, $startdate, $enddate){//, int $idLezioneEdumbu) {
 		global $DB, $CFG;
 		require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 		require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
@@ -178,7 +179,8 @@ class local_mamboodle_external extends external_api {
 			'new_course_shortname' => $new_course_shortname,
 			'existing_course_id' => $existing_course_id,
 			'startdate' => $startdate,
-			'enddate' => $enddate
+			'enddate' => $enddate,
+			/* 'idLezioneEdumbu' => $idLezioneEdumbu */
 		));
 	
 		// Verifica se il corso esiste
@@ -192,7 +194,7 @@ class local_mamboodle_external extends external_api {
 			$existing_course->id, 
 			backup::FORMAT_MOODLE, 
 			backup::INTERACTIVE_NO, 
-			backup::MODE_GENERAL, 
+			backup::MODE_SAMESITE, 
 			2
 		);		 
 
@@ -259,6 +261,7 @@ class local_mamboodle_external extends external_api {
 		$course->enddate = $enddate;
 		$course->fullname = $new_course_name;
 		$course->shortname = $new_course_shortname;
+		/* $course->idnumber = $idLezioneEdumbu; */
 		$DB->update_record('course', $course);
 
 		
