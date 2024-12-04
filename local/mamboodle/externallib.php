@@ -26,29 +26,36 @@ class local_mamboodle_external extends external_api {
 			throw new invalid_parameter_exception('Array di ID dei corsi vuoto');
 		}
 		$course_ids = implode(',', $course_ids);
-		$sql = "SELECT c.id, u.idnumber AS user_idnumber, u.timecreated, u.timemodified, cc.timecompleted
-				FROM {course} c
-				JOIN {course_completions} cc ON c.id = cc.course
-				JOIN {user} u ON cc.userid = u.id
-				WHERE c.id IN ($course_ids) 
-				AND cc.timecompleted IS NOT NULL 
-				ORDER BY c.id, u.idnumber";
-		$records = $DB->get_records_sql($sql);
+		$sql = "SELECT 
+					c.id, 
+					u.idnumber AS user_idnumber, 
+					u.timecreated, 
+					u.timemodified, 
+					cc.timecompleted
+				FROM {course_completions} cc 
+					JOIN {course} c ON c.id = cc.course
+					JOIN {user} u ON cc.userid = u.id
+				WHERE 
+					c.id IN ($course_ids) 
+					AND cc.timecompleted IS NOT NULL 
+				ORDER BY 
+					c.id, 
+					u.idnumber";
+		$records = $DB->get_recordset_sql ($sql);
 		$result = [];
-		$a_id = [];
 		foreach ($records as $record) {
-			if(!in_array($record->id, $a_id)){
-				$a_id[] = $record->id;
-				$result[] = [
+			if (!isset($result[$record->id])) {
+				$result[$record->id] = [
 					"course_id" => $record->id,
 					"completions" => []
 				];
 			}
-			$result[count($result)-1]["completions"][] = [
+			$result[$record->id]["completions"][] = [
 				"user_idnumber" => $record->user_idnumber,
 				"timecompleted" => $record->timecompleted
 			];
 		}
+		$result = array_values($result);
 		return $result;
 	}
 
